@@ -105,7 +105,7 @@ class ISEAPI(object):
 		"""
 		myurl = "https://"+self.server+":9060/ers/config/endpoint"
 		headers = {'content-type': "application/vnd.com.cisco.ise.identity.endpoint.1.0+xml; charset=utf-8"}
-		print content
+		#print content
 		return self.ISEPOST(myurl, headers, content)
 
 
@@ -123,7 +123,8 @@ class ISEAPI(object):
 		XXX
 		"""
 		letters = (":" if i % 3 == 0 else char for i, char in enumerate(macAddress.upper(), 1))
-		return ''.join(letters)
+		transMac = str(''.join(letters))
+		return transMac
 
 
 
