@@ -1,18 +1,3 @@
-"""
-access
-YTgzMzQ1ZGUtNzQ5Yy00MjY2LThlYmItM2JlZjM4ZjM3YzkzZTk4ZDk2ZTUtYjEy
-
-
-
-room
-Y2lzY29zcGFyazovL3VzL1JPT00vNWU4ZGEwMzItMTc3Ni0zODhmLTg4YWItODRkZmNkZGVjYWVl
-"""
-
-#my actor ID Y2lzY29zcGFyazovL3VzL1BFT1BMRS8wNmE0ODJhNy00NjEzLTRiN2MtYWYxZi1kMzI2ZDZhNzQyZGQ
-#bot actor ID Y2lzY29zcGFyazovL3VzL1BFT1BMRS8zN2E0MmY3NS05YzBkLTQxMjMtYjgyMS01MDY0NjQyZTg0NTc
-
-
-
 from flask import Flask, request, session, redirect 
 import json
 from ISEAPI import SparkAPI
@@ -20,14 +5,17 @@ from ISEAPI import ISEAPI
 import re
 import io
 import os
+import readSettings
 
-server = "198.19.10.27"
-username = "ERSAdmin"
-password = "C1sco12345"
+setList = readSettings.loadSettings("settings.txt")
 
-roomID = "Y2lzY29zcGFyazovL3VzL1JPT00vNWU4ZGEwMzItMTc3Ni0zODhmLTg4YWItODRkZmNkZGVjYWVl"
-botToken = "YTgzMzQ1ZGUtNzQ5Yy00MjY2LThlYmItM2JlZjM4ZjM3YzkzZTk4ZDk2ZTUtYjEy"
-botID = "Y2lzY29zcGFyazovL3VzL1BFT1BMRS8zN2E0MmY3NS05YzBkLTQxMjMtYjgyMS01MDY0NjQyZTg0NTc"
+server = setList[0].rstrip()
+username = setList[1].rstrip()
+password = setList[2].rstrip()
+
+roomID = setList[3].rstrip()
+botToken = setList[4].rstrip()
+botID = setList[5].rstrip()
 
 ISEReq = ISEAPI(server, username, password)
 maccheck = re.compile('^([0-9A-Fa-f]{2}[:.-]){5}([0-9A-Fa-f]{2})$')
@@ -47,19 +35,7 @@ def oldMacCheck(macAddress):
 			for resource in resources:
 				a =resource.attrib
 				deviceDict[a['name']] = a['id']
-				"""
-				if ((a['name'])==(transMac)):
-					print "MATCH!!"
-					
-					deviceID = a['id']
-					#print deviceID
-					deviceFound = True					
-					oldDeviceInfo = ISEReq.GetEndpointByID(deviceID)
-				"""
-					
-		
-		#print deviceDict
-		print "The transMac is "+transMac
+
 		if transMac in deviceDict:
 			deviceID = deviceDict[transMac]
 			oldDeviceInfo = ISEReq.GetEndpointByID(deviceID)	
@@ -83,9 +59,6 @@ def newMacCreate(macAddress, oldDeviceID, oldGroupID, oldProfileID):
 		if doCreate == True:
 
 			return ISEReq.DeleteEndpoint(oldDeviceID)
-
-
-
 
 	else:
 		return 'NOTMAC'
