@@ -38,6 +38,7 @@ def oldMacCheck(macAddress):
 
 		if transMac in deviceDict:
 			deviceID = deviceDict[transMac]
+			print deviceID
 			oldDeviceInfo = ISEReq.GetEndpointByID(deviceID)	
 			return oldDeviceInfo
 		else:
