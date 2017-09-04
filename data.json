@@ -1,0 +1,23 @@
+{
+    "ns4:endpoint": {
+        "@description": "description",
+        "@id": "1a9c20a0-9145-11e7-8415-005056ab7473",
+        "@name": "AA:BB:CC:11:22:33",
+        "@xmlns:ers": "ers.ise.cisco.com",
+        "@xmlns:ns4": "identity.ers.ise.cisco.com",
+        "@xmlns:xs": "http://www.w3.org/2001/XMLSchema",
+        "groupId": "6f728d30-6d8e-11e5-978e-005056bf2f0a",
+        "identityStore": null,
+        "identityStoreId": null,
+        "link": {
+            "@href": "https://198.19.10.27:9060/ers/config/endpoint/1a9c20a0-9145-11e7-8415-005056ab7473",
+            "@rel": "self",
+            "@type": "application/xml"
+        },
+        "mac": "AA:BB:CC:11:22:33",
+        "portalUser": null,
+        "profileId": "787252d0-6d8e-11e5-978e-005056bf2f0a",
+        "staticGroupAssignment": "true",
+        "staticProfileAssignment": "true"
+    }
+}
