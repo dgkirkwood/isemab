@@ -43,8 +43,6 @@ import os
 import settings
 from google.cloud import vision
 from google.cloud.vision import types
-import logging
-logging.basicConfig(level=logging.DEBUG)
 
 """
 Load settings from local text file
@@ -89,7 +87,7 @@ filename = None
 def detect_mac_address(path):
     """Detects MAC address in the file."""
     client = vision.ImageAnnotatorClient()
-    MAC = False
+    MAC = "MAC address not found"
 
     with io.open(path, 'rb') as image_file:
         content = image_file.read()
@@ -140,7 +138,7 @@ def oldMacCheck(macAddress):
 			with io.open('data.json', 'w', encoding='utf8') as outfile:
 				str_ = json.dumps(data, indent=4, sort_keys=True, separators=(',', ': '), ensure_ascii=False)
 				outfile.write(str_)				
-			payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"Device found with MAC "+transMac+". Please enter the MAC address of the new device being installed.\"\n}"
+			payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"Device found. Please enter the MAC address of the new device being installed.\"\n}"
 			sparkCall.POSTMessage(payload)
 
 			# Return HTTP OK code to the webhook to inform that the request was successful
@@ -175,7 +173,7 @@ def newMacCreate(macAddress, oldDeviceID, oldGroupID, oldProfileID):
 		if doCreate == True:
 			# If the create function was successful, remove the old device
 			deleter = ISEReq.DeleteEndpoint(oldDeviceID)
-			payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"Device with MAC "+newmac+" is now authorised to access the network.\"\n}"
+			payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"Device with mac "+newmac+" is now authorised to access the network.\"\n}"
 			sparkCall.POSTMessage(payload)
 			os.remove('data.json')				
 			return "OK"
@@ -186,165 +184,154 @@ def newMacCreate(macAddress, oldDeviceID, oldGroupID, oldProfileID):
 
 		sparkCall.POSTMessage(payload)
 
-		return "OK"
-
 
 # Flask used as listener for webhooks from Spark
-app = Flask(__name__)
 
-@app.route('/',methods=['POST'])
-def listener():
-	# On receipt of a POST (webhook), load the JSON data from the request
-	data = json.loads(request.data)
-	#print data
-	messageID = data['data']['id']
-	# If the poster of the message was NOT the bot itself
-	if data['actorId'] != botID:
+
 
 		
-		# Get more specific information about the message that triggered the webhook
-		message = sparkCall.GETMessage(messageID)
+# Get more specific information about the message that triggered the webhook
+messageID = 'Y2lzY29zcGFyazovL3VzL01FU1NBR0UvNzIxYjg4MDAtOTIyZC0xMWU3LThhOTYtMTMxOTM0NWNiZjU0'
 
-		prettymessage = json.loads(message)
-		print prettymessage
+message = sparkCall.GETMessage(messageID)
+
+prettymessage = json.loads(message)
+print prettymessage
+
+
+
+if 'files' not in prettymessage:
+	print "not a file :("
+	#return "OK"
+	
+	# Check if the user is describing the old MAC
+	if prettymessage["text"][0] in ("O", "o"):
 		
-
+		# Grab only the mac address from the message
+		macOnly = (prettymessage["text"][4:21])
 		
-		if 'files' not in prettymessage:
-			print "not a file :("
-			#return "OK"
-			
-			# Check if the user is describing the old MAC
-			if prettymessage["text"][0] in ("O", "o"):
-				
-				# Grab only the mac address from the message
-				macOnly = (prettymessage["text"][4:21])
-				
-				# Ensure the MAC was entered correctly, and exists in the ISE deployment
-				check = oldMacCheck(macOnly)
+		# Ensure the MAC was entered correctly, and exists in the ISE deployment
+		check = oldMacCheck(macOnly)
 
 
 
-			elif prettymessage["text"][0] in ("N", "n"):
-				# Strip the MAC address from the message
-				macOnly = (prettymessage["text"][4:21])
+	elif prettymessage["text"][0] in ("N", "n"):
+		# Strip the MAC address from the message
+		macOnly = (prettymessage["text"][4:21])
 
-				# Check that the user has already entered information on the old MAC address
-				if os.path.isfile('data.json') == True:
-					# If so, load the specific 
-					with open('data.json') as data_file:
-						data_loaded = json.load(data_file)
-				# Otherewise, inform the user that they need to enter the MAC of the old device
-				else:
-					payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"You have not yet entered data on the device you would like to replace. Identify the old device using \'old AA:BB:CC:11:22:33\'\"\n}"
-
-					sparkCall.POSTMessage(payload)
-
-					return "OK"					
-
-				# Load specific data from the old device that will be used to set up the new device with the same parameters
-				oldDeviceID = data_loaded["ns4:endpoint"]["@id"]
-				oldGroupID = data_loaded["ns4:endpoint"]["groupId"]
-				oldProfileID = data_loaded["ns4:endpoint"]["profileId"]
-
-				# Use the new MAC with the information from the old device to create the new device
-				creator = newMacCreate(macOnly, oldDeviceID, oldGroupID, oldProfileID)
-
-
-		elif 'files' in prettymessage:
-			#print "this is a file"
-			#return "OK"
-		
-
-			print 'I found a file!!'
-			image_is_in_Spark = True
-	        headers = {
-	            'authorization': "Bearer " + botToken,
-	            'cache-control': "no-cache"
-	        }
-	        imageUrl = prettymessage['files'][0]
-	        response = requests.request("GET", imageUrl, headers=headers)
-	        if response.status_code == 200:
-
-	            # Image is in Spark, filename is retrieved from headers
-	            imgHeaders = response.headers
-	            print (imgHeaders)
-
-	            if 'image' in imgHeaders['Content-Type']:
-	                filename = imgHeaders['Content-Disposition'].replace("attachment; ", "").replace('filename', '').replace('=', '').replace('"', '')
-	            	print filename
-	            	with open(filename, 'wb') as f:
-		            	print "writing file..."
-		            	os.chmod(filename, 0o777)
-		            	f.write(response.content)
-		        print ("\n\nDetecting MAC address from downloaded image:")
-		        detectedMac = (detect_mac_address(filename))
-
-		        if detectedMac == False:
-
-			        payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"No MAC address detected in image.\"\n}"
-			        sparkCall.POSTMessage(payload)
-
-			        return "OK"
-
-		        if prettymessage["text"][0] in ("O", "o"):
-		        	check = oldMacCheck(detectedMac)
-
-		        elif prettymessage["text"][0] in ("N", "n"):
-				# Check that the user has already entered information on the old MAC address
-
-					if os.path.isfile('data.json') == True:
-						# If so, load the specific 
-						with open('data.json') as data_file:
-							data_loaded = json.load(data_file)
-					# Otherewise, inform the user that they need to enter the MAC of the old device
-					else:
-						payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"You have not yet entered data on the device you would like to replace. Identify the old device using \'old AA:BB:CC:11:22:33\'\"\n}"
-
-						sparkCall.POSTMessage(payload)
-
-						return "OK"					
-
-					# Load specific data from the old device that will be used to set up the new device with the same parameters
-					oldDeviceID = data_loaded["ns4:endpoint"]["@id"]
-					oldGroupID = data_loaded["ns4:endpoint"]["groupId"]
-					oldProfileID = data_loaded["ns4:endpoint"]["profileId"]
-
-					# Use the new MAC with the information from the old device to create the new device
-					creator = newMacCreate(detectedMac, oldDeviceID, oldGroupID, oldProfileID)
-
-
-	            else:
-	                #print(str(filename) + " is not an image")
-
-	                payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"this does not appear to be a valid image.\"\n}"
-	                sparkCall.POSTMessage(payload)
-	                return "OK"
-
-			
-		
+		# Check that the user has already entered information on the old MAC address
+		if os.path.isfile('data.json') == True:
+			# If so, load the specific 
+			with open('data.json') as data_file:
+				data_loaded = json.load(data_file)
+		# Otherewise, inform the user that they need to enter the MAC of the old device
 		else:
-			print "how did u get here"
-			return "OK"
-			
-			
-				
-			"""
-			# Check that the create was successful, if so inform the user and delete the local file describing the old device
-			if creator == True:
-				payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"Device with mac "+macOnly+" is now authorised to access the network.\"\n}"
-				sparkCall.POSTMessage(payload)
-				os.remove('data.json')				
-				return "OK"
-			# If the user has entered an incorrect MAC address, inform the user
-			elif creator == 'NOTMAC':
-				payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \""+macOnly+" does not appear to be a valid MAC address. Please ensure you enter 12 hexadecimal characters in pairs separated by ':'' , '.'' or '-'. For example aa:bb:cc:11:22:33\"\n}"
+			payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"You have not yet entered data on the device you would like to replace. Identify the old device using \'old AA:BB:CC:11:22:33\'\"\n}"
+
+			sparkCall.POSTMessage(payload)
+
+			#return "OK"					
+
+		# Load specific data from the old device that will be used to set up the new device with the same parameters
+		oldDeviceID = data_loaded["ns4:endpoint"]["@id"]
+		oldGroupID = data_loaded["ns4:endpoint"]["groupId"]
+		oldProfileID = data_loaded["ns4:endpoint"]["profileId"]
+
+		# Use the new MAC with the information from the old device to create the new device
+		creator = newMacCreate(macOnly, oldDeviceID, oldGroupID, oldProfileID)
+
+
+elif 'files' in prettymessage:
+	print "this is a file"
+	#return "OK"
+
+
+	print 'I found a file!!'
+	image_is_in_Spark = True
+	headers = {
+        'authorization': "Bearer " + botToken,
+        'cache-control': "no-cache"
+    }
+	imageUrl = prettymessage['files'][0]
+	response = requests.request("GET", imageUrl, headers=headers)
+	if response.status_code == 200:
+
+        # Image is in Spark, filename is retrieved from headers
+		imgHeaders = response.headers
+		print (imgHeaders)
+
+        if 'image' in imgHeaders['Content-Type']:
+			filename = imgHeaders['Content-Disposition'].replace("attachment; ", "").replace('filename', '').replace('=', '').replace('"', '')
+			print filename
+			with open(filename, 'wb') as f:
+				print "writing file..."
+				os.chmod(filename, 0o777)
+				f.write(response.content)
+        else:
+            #print(str(filename) + " is not an image")
+
+            payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"this does not appear to be a valid image.\"\n}"
+            sparkCall.POSTMessage(payload)
+
+        # Download the image
+
+
+
+        print ("\n\nDetecting MAC address from downloaded image:")
+        detectedMac = (detect_mac_address(filename))
+
+        payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \""+detectedMac+" is the detected MAC address\"\n}"
+        sparkCall.POSTMessage(payload)
+
+
+        if prettymessage["text"][0] in ("O", "o"):
+        	check = oldMacCheck(detectedMac)
+
+        elif prettymessage["text"][0] in ("N", "n"):
+		# Check that the user has already entered information on the old MAC address
+
+			if os.path.isfile('data.json') == True:
+				# If so, load the specific 
+				with open('data.json') as data_file:
+					data_loaded = json.load(data_file)
+			# Otherewise, inform the user that they need to enter the MAC of the old device
+			else:
+				payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"You have not yet entered data on the device you would like to replace. Identify the old device using \'old AA:BB:CC:11:22:33\'\"\n}"
 
 				sparkCall.POSTMessage(payload)
-			"""
+
+				#return "OK"					
+
+			# Load specific data from the old device that will be used to set up the new device with the same parameters
+			oldDeviceID = data_loaded["ns4:endpoint"]["@id"]
+			oldGroupID = data_loaded["ns4:endpoint"]["groupId"]
+			oldProfileID = data_loaded["ns4:endpoint"]["profileId"]
+
+			# Use the new MAC with the information from the old device to create the new device
+			creator = newMacCreate(detectedMac, oldDeviceID, oldGroupID, oldProfileID)
+
+	
+
+else:
+	print "how did u get here"
+	#return "OK"
+	
+	
+		
+	"""
+	# Check that the create was successful, if so inform the user and delete the local file describing the old device
+	if creator == True:
+		payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \"Device with mac "+macOnly+" is now authorised to access the network.\"\n}"
+		sparkCall.POSTMessage(payload)
+		os.remove('data.json')				
+		return "OK"
+	# If the user has entered an incorrect MAC address, inform the user
+	elif creator == 'NOTMAC':
+		payload = "{\n  \"roomId\" : \""+roomID+"\",\n  \"text\" : \""+macOnly+" does not appear to be a valid MAC address. Please ensure you enter 12 hexadecimal characters in pairs separated by ':'' , '.'' or '-'. For example aa:bb:cc:11:22:33\"\n}"
+
+		sparkCall.POSTMessage(payload)
+	"""
 
 
 # Runs the listener on port 80
-if __name__ == '__main__':
-	app.run(host='0.0.0.0', port=80, debug=True)
 
