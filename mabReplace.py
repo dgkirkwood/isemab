@@ -279,6 +279,7 @@ def listener():
 		            	f.write(response.content)
 		        print ("\n\nDetecting MAC address from downloaded image:")
 		        detectedMac = (detect_mac_address(filename))
+		        print detectedMac
 
 		        if detectedMac == False:
 
